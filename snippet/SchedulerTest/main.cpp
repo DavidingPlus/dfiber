@@ -12,14 +12,14 @@ void task()
 {
     {
         std::lock_guard<std::mutex> lock(mutex);
-        std::cout << "task " << number++ << " is under processing in thread: " << Thread::GetThreadId() << std::endl;
+        std::cout << "task " << number++ << " is under processing in thread: " << dfiber::Thread::GetThreadId() << std::endl;
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 int main(int argc, char const *argv[])
 {
-    std::shared_ptr<Scheduler> scheduler = std::make_shared<Scheduler>(3, true, "scheduler_1");
+    std::shared_ptr<dfiber::Scheduler> scheduler = std::make_shared<dfiber::Scheduler>(3, true, "scheduler_1");
 
     scheduler->start();
 
@@ -28,7 +28,7 @@ int main(int argc, char const *argv[])
     std::cout << "\nbegin post\n\n";
     for (int i = 0; i < 5; ++i)
     {
-        std::shared_ptr<Fiber> fiber = std::make_shared<Fiber>(task);
+        std::shared_ptr<dfiber::Fiber> fiber = std::make_shared<dfiber::Fiber>(task);
         scheduler->scheduleLock(fiber);
     }
 
@@ -37,7 +37,7 @@ int main(int argc, char const *argv[])
     std::cout << "\npost again\n\n";
     for (int i = 0; i < 15; ++i)
     {
-        std::shared_ptr<Fiber> fiber = std::make_shared<Fiber>(task);
+        std::shared_ptr<dfiber::Fiber> fiber = std::make_shared<dfiber::Fiber>(task);
         scheduler->scheduleLock(fiber);
     }
 

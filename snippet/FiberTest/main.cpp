@@ -5,10 +5,11 @@
 
 class Scheduler
 {
+
 public:
 
     // 添加协程调度任务。
-    void schedule(std::shared_ptr<Fiber> task)
+    void schedule(std::shared_ptr<dfiber::Fiber> task)
     {
         m_tasks.push_back(task);
     }
@@ -18,7 +19,7 @@ public:
     {
         std::cout << "task number " << m_tasks.size() << std::endl;
 
-        std::shared_ptr<Fiber> task;
+        std::shared_ptr<dfiber::Fiber> task;
 
         // 先来先服务。
         auto it = m_tasks.begin();
@@ -39,7 +40,7 @@ public:
 private:
 
     // 任务队列
-    std::vector<std::shared_ptr<Fiber>> m_tasks;
+    std::vector<std::shared_ptr<dfiber::Fiber>> m_tasks;
 };
 
 void testFiber(int i)
@@ -51,7 +52,7 @@ void testFiber(int i)
 int main()
 {
     // 初始化当前线程的主协程。
-    Fiber::GetThis();
+    dfiber::Fiber::GetThis();
 
     // 创建调度器。
     Scheduler sc;
@@ -62,7 +63,7 @@ int main()
         // 创建子协程。
         // 使用共享指针自动管理资源 -> 过期后自动释放子协程创建的资源。
         // bind 函数 -> 绑定函数和参数用来返回一个函数对象。
-        std::shared_ptr<Fiber> fiber = std::make_shared<Fiber>(std::bind(testFiber, i), 0, false);
+        std::shared_ptr<dfiber::Fiber> fiber = std::make_shared<dfiber::Fiber>(std::bind(testFiber, i), 0, false);
 
         sc.schedule(fiber);
     }

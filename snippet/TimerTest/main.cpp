@@ -13,7 +13,7 @@ void func(int i)
 
 int main(int argc, char const *argv[])
 {
-    std::shared_ptr<TimerManager> manager(new TimerManager());
+    std::shared_ptr<dfiber::TimerManager> manager(new dfiber::TimerManager());
     std::vector<std::function<void()>> cbs;
 
     // 测试 listExpiredCb 超时功能。

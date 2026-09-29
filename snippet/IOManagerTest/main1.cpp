@@ -32,7 +32,7 @@ void writeCb()
 
 int main(int argc, char const *argv[])
 {
-    IOManager manager(2);
+    dfiber::IOManager manager(2);
 
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,8 +46,8 @@ int main(int argc, char const *argv[])
 
     connect(sock, (struct sockaddr *)&server, sizeof(server));
 
-    manager.addEvent(sock, IOManager::Event::WRITE, &writeCb);
-    manager.addEvent(sock, IOManager::Event::READ, &readCb);
+    manager.addEvent(sock, dfiber::IOManager::Event::WRITE, &writeCb);
+    manager.addEvent(sock, dfiber::IOManager::Event::READ, &readCb);
 
     std::cout << "event has been posted\n"
               << std::endl;

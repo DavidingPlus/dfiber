@@ -31,7 +31,7 @@ void testAccept()
     {
         std::cout << "accepted connection, fd = " << fd << std::endl;
         fcntl(fd, F_SETFL, O_NONBLOCK);
-        IOManager::GetThis()->addEvent(fd, IOManager::Event::READ, [fd]()
+        dfiber::IOManager::GetThis()->addEvent(fd, dfiber::IOManager::Event::READ, [fd]()
                                        {
                                            char buffer[1024];
                                            memset(buffer, 0, sizeof(buffer));
@@ -76,7 +76,7 @@ void testAccept()
                                            } //
                                        });
     }
-    IOManager::GetThis()->addEvent(sockListenFd, IOManager::Event::READ, testAccept);
+    dfiber::IOManager::GetThis()->addEvent(sockListenFd, dfiber::IOManager::Event::READ, testAccept);
 }
 
 void error(const char *msg)
@@ -88,7 +88,7 @@ void error(const char *msg)
 
 void watchIoRead()
 {
-    IOManager::GetThis()->addEvent(sockListenFd, IOManager::Event::READ, testAccept);
+    dfiber::IOManager::GetThis()->addEvent(sockListenFd, dfiber::IOManager::Event::READ, testAccept);
 }
 
 void testIomanager()
@@ -117,8 +117,8 @@ void testIomanager()
 
     printf("epoll echo server listening for connections on port: %d\n", portno);
     fcntl(sockListenFd, F_SETFL, O_NONBLOCK);
-    IOManager iom(9);
-    iom.addEvent(sockListenFd, IOManager::Event::READ, testAccept);
+    dfiber::IOManager iom(9);
+    iom.addEvent(sockListenFd, dfiber::IOManager::Event::READ, testAccept);
 }
 
 int main(int argc, char *argv[])
