@@ -40,7 +40,7 @@ void TimerManager::tick()
     // 获取当前时间，用于判断定时器是否到期。
     uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "TimerManager::tick() now: " << now << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "TimerManager::tick() now: " << now << std::endl;
 
     while (!m_heap.empty())
     {

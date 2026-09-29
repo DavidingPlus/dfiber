@@ -55,7 +55,7 @@ Scheduler::Scheduler(size_t threads, bool useCaller, const std::string &name)
 
     m_threadCount = threads; // 将剩余的线程数量（即总线程数量减去是否使用调用者线程）赋值给 m_threadCount。
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Scheduler::Scheduler() success" << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Scheduler::Scheduler() success" << std::endl;
 }
 
 Scheduler::~Scheduler()
@@ -65,7 +65,7 @@ Scheduler::~Scheduler()
     // 获取调度器的对象。
     if (this == GetThis()) t_scheduler = nullptr; // 将其设置为 nullptr 防止悬空指针。
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Scheduler::~Scheduler() success" << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Scheduler::~Scheduler() success" << std::endl;
 }
 
 void Scheduler::start()
@@ -90,12 +90,12 @@ void Scheduler::start()
         m_threadIds.emplace_back(m_threads[i]->getId());
     }
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Scheduler::start() success" << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Scheduler::start() success" << std::endl;
 }
 
 void Scheduler::stop()
 {
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Schedule::stop() starts in thread: " << Thread::GetThreadId() << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Schedule::stop() starts in thread: " << Thread::GetThreadId() << std::endl;
 
     // 1. 判断是否已经可以停止。
     if (stopping()) return;
@@ -106,7 +106,7 @@ void Scheduler::stop()
     // 2. 检查 stop() 是否再正确的线程调用。从目前的设计来看，这个检查没有意义。
     // 不管是 m_useCaller 为 true 还是 false，都必须在主线程里面 SetThis() 绑定好协程调度器，因为管理的操作一定是在主线程发生的，因此一定要保证 GetThis() 这类函数的返回值不是 nullptr。具体见 IOManager 的 addEvent() 的 eventCtx.scheduler = Scheduler::GetThis()。因此下面的检测其实没有意义。
     // 下面的 this 指针对应的 Scheduler 对象是主线程最开始创建调度器的那个 Scheduler 对象。调用 Scheduler::stop() 函数的是一定主线程，例如 main() 函数里面！
-    if (COROUTINE_CONFIG_DEBUG)
+    if (DFIBER_CONFIG_DEBUG)
     {
         std::cout << "this: " << this << '\n'
                   << "GetThis(): " << GetThis() << std::endl;
@@ -136,7 +136,7 @@ void Scheduler::stop()
     {
         m_schedulerFiber->resume(); // 开始任务调度。
 
-        if (COROUTINE_CONFIG_DEBUG) std::cout << "m_schedulerFiber ends in thread: " << Thread::GetThreadId() << std::endl;
+        if (DFIBER_CONFIG_DEBUG) std::cout << "m_schedulerFiber ends in thread: " << Thread::GetThreadId() << std::endl;
     }
 
     // 获取此时的线程通过 swap 不会增加引用计数的方式加入到 thrs，方便下面的 join 保持线程正常退出。
@@ -149,7 +149,7 @@ void Scheduler::stop()
 
     for (auto &i : thrs) i->join();
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Schedule::stop() ends in thread: " << Thread::GetThreadId() << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Schedule::stop() ends in thread: " << Thread::GetThreadId() << std::endl;
 }
 
 void Scheduler::tickle()
@@ -161,7 +161,7 @@ void Scheduler::run()
 {
     // 获取当前线程的 ID。
     int threadId = Thread::GetThreadId();
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Schedule::run() starts in thread: " << threadId << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Schedule::run() starts in thread: " << threadId << std::endl;
 
     // set_hook_enable(true);
 
@@ -246,7 +246,7 @@ void Scheduler::run()
             if (Fiber::TERMINATE == idleFiber->getState())
             {
                 // 如果调度器没有调度任务，那么 idle 协程回不断的 resume/yield，不会结束进入一个忙等待，如果 idle 协程结束了，一定是调度器停止了，直到有任务才执行上面的 if/else。idle 协程不断与当前线程的调度入口（Main Fiber 或 Scheduler Fiber）进行切换。当 stopping() 返回 true 时，idle 协程结束，run() 也随之退出。
-                if (COROUTINE_CONFIG_DEBUG) std::cout << "Schedule::run() ends in thread: " << threadId << std::endl;
+                if (DFIBER_CONFIG_DEBUG) std::cout << "Schedule::run() ends in thread: " << threadId << std::endl;
 
                 break;
             }
@@ -263,7 +263,7 @@ void Scheduler::idle()
     // 当 stop() 将 m_stopping 设置为 true 后，调度线程不会立即退出，而是继续执行 Scheduler::run()，将任务队列中剩余的任务全部调度完成。当没有可执行任务时，会进入空闲协程 idle()。此时 stopping() 返回 true，idle() 会退出循环并结束，随后 Scheduler::run() 跳出主循环，最终使调度线程（或调度协程）正常结束，实现调度器的优雅退出（Graceful Shutdown）。
     while (!stopping())
     {
-        if (COROUTINE_CONFIG_DEBUG) std::cout << "Scheduler::idle(), sleeping in thread: " << Thread::GetThreadId() << std::endl;
+        if (DFIBER_CONFIG_DEBUG) std::cout << "Scheduler::idle(), sleeping in thread: " << Thread::GetThreadId() << std::endl;
 
         {
             // 降低空闲协程在无任务时对 cpu 占用率，避免空转浪费资源。

@@ -1,5 +1,5 @@
-#ifndef _COROUTINE_TIMER_H_
-#define _COROUTINE_TIMER_H_
+#ifndef _DFIBER_TIMER_H_
+#define _DFIBER_TIMER_H_
 
 #include <memory>
 #include <functional>

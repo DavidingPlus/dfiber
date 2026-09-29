@@ -34,7 +34,7 @@ Fiber::Fiber()
     m_id = ++s_fiberId; // 分配 id，协程 id 从 0 开始，用完加 1。
     ++s_fiberCount;     // 活跃的协程数量 +1。
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Fiber(): main id = " << m_id << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Fiber(): main id = " << m_id << std::endl;
 }
 
 // 作用：创建一个新协程，初始化回调函数，栈的大小和状态。分配栈空间，并通过 make 修改上下文当 set 或 swap 激活 ucontext_t，m_ctx 上下文时候会执行 make 第二个参数的函数。
@@ -64,7 +64,7 @@ Fiber::Fiber(std::function<void()> cb, size_t stacksize, bool runInScheduler)
     m_id = ++s_fiberId; // 分配 id，协程 id 从 0 开始，用完加 1。
     ++s_fiberCount;     // 活跃的协程数量 +1。
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "Fiber(): child id = " << m_id << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "Fiber(): child id = " << m_id << std::endl;
 }
 
 Fiber::~Fiber()
@@ -77,7 +77,7 @@ Fiber::~Fiber()
         m_stack = nullptr;
     }
 
-    if (COROUTINE_CONFIG_DEBUG) std::cout << "~Fiber(): id = " << m_id << std::endl;
+    if (DFIBER_CONFIG_DEBUG) std::cout << "~Fiber(): id = " << m_id << std::endl;
 }
 
 // 作用：重置协程的回调函数，并重新设置上下文，使用与将协程从 TERMINATE 状态重置 READY。

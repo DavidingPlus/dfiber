@@ -1,5 +1,5 @@
-#ifndef _COROUTINE_SEMAPHORE_H_
-#define _COROUTINE_SEMAPHORE_H_
+#ifndef _DFIBER_SEMAPHORE_H_
+#define _DFIBER_SEMAPHORE_H_
 
 #include <mutex>
 #include <condition_variable>

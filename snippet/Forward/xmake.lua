@@ -1,11 +1,11 @@
 target("Forward1")
     set_kind("binary")
     add_files("main1.cpp")
-    add_deps("coroutine")
+    add_deps("dfiber")
 target_end()
 
 target("Forward2")
     set_kind("binary")
     add_files("main2.cpp")
-    add_deps("coroutine")
+    add_deps("dfiber")
 target_end()

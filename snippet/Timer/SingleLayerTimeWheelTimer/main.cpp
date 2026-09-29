@@ -101,7 +101,7 @@ TEST(TimeWheelTest, ZeroTimeout)
 
     bool called = false;
 
-    if (COROUTINE_CONFIG_DEBUG)
+    if (DFIBER_CONFIG_DEBUG)
     {
         ASSERT_DEATH({ tmr.addTimer(0,
                                     [&]

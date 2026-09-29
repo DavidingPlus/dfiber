@@ -1,5 +1,5 @@
-#ifndef _COROUTINE_SCHEDULER_H_
-#define _COROUTINE_SCHEDULER_H_
+#ifndef _DFIBER_SCHEDULER_H_
+#define _DFIBER_SCHEDULER_H_
 
 #include <mutex>
 #include <vector>

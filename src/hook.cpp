@@ -95,7 +95,7 @@ void hookInit()
 // 最终 HOOK_FUN(XX) 会展开成所有 hook 函数的 dlsym 初始化代码，避免为每个函数重复手写初始化逻辑。
 #define XX(name)                                    \
     name##_f = (name##_fun)dlsym(RTLD_NEXT, #name); \
-    if (COROUTINE_CONFIG_DEBUG)                     \
+    if (DFIBER_CONFIG_DEBUG)                     \
         std::cout << #name << ": " << (void *)name##_f << std::endl;
 
     HOOK_FUN(XX)
@@ -291,7 +291,7 @@ retry:
         // 如果 res 为 -1，说明 addEvent 失败。取消之前设置的定时器，避免误触发。
         if (-1 == res)
         {
-            if (COROUTINE_CONFIG_DEBUG) std::cout << hookFunName << " addEvent(" << fd << ", " << event << ") failed";
+            if (DFIBER_CONFIG_DEBUG) std::cout << hookFunName << " addEvent(" << fd << ", " << event << ") failed";
 
             if (timer) timer->cancel();
 

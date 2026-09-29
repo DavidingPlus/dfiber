@@ -1,5 +1,5 @@
 target("FiberTest")
     set_kind("binary")
     add_files("main.cpp")
-    add_deps("coroutine")
+    add_deps("dfiber")
 target_end()

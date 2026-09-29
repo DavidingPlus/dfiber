@@ -1,5 +1,5 @@
-#ifndef _COROUTINE_HOOK_H_
-#define _COROUTINE_HOOK_H_
+#ifndef _DFIBER_HOOK_H_
+#define _DFIBER_HOOK_H_
 
 #include <unistd.h>
 #include <sys/socket.h>

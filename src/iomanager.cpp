@@ -439,11 +439,11 @@ void IOManager::idle()
 
     while (true)
     {
-        if (COROUTINE_CONFIG_DEBUG) std::cout << "IOManager::idle(), run in thread: " << Thread::GetThreadId() << std::endl;
+        if (DFIBER_CONFIG_DEBUG) std::cout << "IOManager::idle(), run in thread: " << Thread::GetThreadId() << std::endl;
 
         if (stopping())
         {
-            if (COROUTINE_CONFIG_DEBUG) std::cout << "name = " << getName() << " idle exits in thread: " << Thread::GetThreadId() << std::endl;
+            if (DFIBER_CONFIG_DEBUG) std::cout << "name = " << getName() << " idle exits in thread: " << Thread::GetThreadId() << std::endl;
 
             break;
         }

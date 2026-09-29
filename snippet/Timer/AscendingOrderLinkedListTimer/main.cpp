@@ -186,7 +186,7 @@ TEST(TimerManagerTest, TickManyTimes)
     EXPECT_EQ(count, 3);
 }
 
-#if COROUTINE_CONFIG_DEBUG
+#if DFIBER_CONFIG_DEBUG
 
 TEST(TimerManagerTest, InsertOrder)
 {

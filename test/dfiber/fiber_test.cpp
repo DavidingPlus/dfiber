@@ -165,5 +165,5 @@ TEST(FiberTest, ResumeAfterTerminate)
     fiber->resume();
 
     // Release 模式下，assert(xxx) 宏会被定义为 NDEBUG，该部分的代码都会被优化掉，因此下面这行代码只在 Debug 下测试。
-    if (COROUTINE_CONFIG_DEBUG) ASSERT_DEATH({ fiber->resume(); }, "");
+    if (DFIBER_CONFIG_DEBUG) ASSERT_DEATH({ fiber->resume(); }, "");
 }

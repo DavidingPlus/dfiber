@@ -53,7 +53,7 @@ public:
     void tick();
 
 
-#if COROUTINE_CONFIG_DEBUG
+#if DFIBER_CONFIG_DEBUG
 
     // 打印定时器管理器中的定时器的信息。
     void printTimers();

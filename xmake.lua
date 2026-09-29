@@ -3,8 +3,8 @@ set_allowedplats("linux")
 includes("config.lua")
 
 
-local project_name = "coroutine"
-local macro_prefix = "COROUTINE"
+local project_name = "dfiber"
+local macro_prefix = "DFIBER"
 local version = "1.0.0"
 local export_headers_module = "export-headers"
 local export_headers_import_options = {rootdir = os.scriptdir(), anonymous = true}
@@ -22,7 +22,7 @@ set_version(version)
 
 set_xmakever("3.0.9")
 set_project(project_name)
-set_description("A Simple Coroutine Lib.")
+set_description("A simple dfiber library.")
 set_languages("cxx17")
 
 add_rules("mode.debug", "mode.release")
