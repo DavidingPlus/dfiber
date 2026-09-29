@@ -3,6 +3,9 @@
 #include "scheduler.h"
 
 
+using namespace dfiber;
+
+
 TEST(SchedulerTest, BasicFunctionSchedule)
 {
     Scheduler sc(1, false, "test");

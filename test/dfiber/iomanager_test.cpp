@@ -7,6 +7,9 @@
 #include <unistd.h>
 
 
+using namespace dfiber;
+
+
 TEST(IOManagerTest, ReadEvent)
 {
     IOManager iom(2, true); // 成功。

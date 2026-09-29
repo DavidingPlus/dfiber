@@ -5,6 +5,9 @@
 #include "config.h"
 
 
+using namespace dfiber;
+
+
 // Fiber 析构输出出现在测试结束之后，出现 Fiber ID 为 1 和较大的 Fiber ID（例如 id = 1164）属于正常现象。
 //
 // 1. 关于主协程（Main Fiber）：

@@ -7,6 +7,9 @@
 #include <fcntl.h>
 
 
+using namespace dfiber;
+
+
 TEST(FdCtxTest, InvalidFd)
 {
     FdCtx ctx(-1);

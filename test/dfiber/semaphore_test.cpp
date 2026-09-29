@@ -6,6 +6,9 @@
 #include "semaphore.h"
 
 
+using namespace dfiber;
+
+
 TEST(SemaphoreTest, InitialCount)
 {
     Semaphore sem(1);

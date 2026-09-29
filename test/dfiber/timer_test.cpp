@@ -6,6 +6,9 @@
 #include "timer.h"
 
 
+using namespace dfiber;
+
+
 TEST(TimerTest, OneShotTimer)
 {
     TimerManager manager;

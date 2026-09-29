@@ -3,6 +3,9 @@
 #include "thread.h"
 
 
+using namespace dfiber;
+
+
 TEST(ThreadTest, CreateThread)
 {
     bool executed = false;
