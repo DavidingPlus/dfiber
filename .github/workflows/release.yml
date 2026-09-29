@@ -1,9 +1,6 @@
 # Release On Multiple Platform
 name: Release
 
-env:
-  PACKAGE_NAME: coroutine
-
 on:
   workflow_dispatch:
   push:
@@ -19,20 +16,40 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux x86_64
+          # Linux x86_64 shared
           - os: ubuntu
             arch: x86_64
             plat: linux
             xmake-arch: x86_64
             runtime: ""
+            shared: true
             runs-on: ubuntu-latest
 
-          # Linux arm64
+          # Linux x86_64 static
+          - os: ubuntu
+            arch: x86_64
+            plat: linux
+            xmake-arch: x86_64
+            runtime: ""
+            shared: false
+            runs-on: ubuntu-latest
+
+          # Linux arm64 shared
           - os: ubuntu
             arch: arm64
             plat: linux
             xmake-arch: arm64
             runtime: ""
+            shared: true
+            runs-on: ubuntu-24.04-arm
+
+          # Linux arm64 static
+          - os: ubuntu
+            arch: arm64
+            plat: linux
+            xmake-arch: arm64
+            runtime: ""
+            shared: false
             runs-on: ubuntu-24.04-arm
 
     runs-on: ${{ matrix.runs-on }}
@@ -49,21 +66,44 @@ jobs:
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
-        args="\
-          -m release \
-          -p ${{ matrix.plat }} \
-          -a ${{ matrix.xmake-arch }}"
+        args="-m release -p ${{ matrix.plat }} -a ${{ matrix.xmake-arch }}"
 
         if [ -n "${{ matrix.runtime }}" ]; then
             args="$args --runtimes=${{ matrix.runtime }}"
         fi
 
+        args="$args --build_shared=${{ matrix.shared }}"
+
         xmake f $args -y
+
+    - name: Read package name
+      shell: bash
+      run: |
+        package_name="$(node -p 'require("./build/package-metadata.json").package_name')"
+        printf 'PACKAGE_NAME=%s\n' "$package_name" >> "$GITHUB_ENV"
+
+    - name: Upload package metadata
+      if: matrix.plat == 'linux' && matrix.xmake-arch == 'x86_64' && matrix.shared == false
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-metadata
+        path: build/package-metadata.json
+        if-no-files-found: error
 
     - name: Build Targets
       working-directory: ${{github.workspace}}
       run: xmake build
 
+    # 使用 xmake 原生 package 机制生成编译完成的二进制包。
+    # build/packages/
+    # └── x
+    #     └── xmake-project
+    #         └── linux
+    #             └── x86_64
+    #                 └── release
+    #                     ├── include/
+    #                     ├── lib/
+    #                     └── bin/
     - name: Generate Packages
       working-directory: ${{github.workspace}}
       run: xmake package
@@ -72,23 +112,71 @@ jobs:
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
-        suffix=""
-
-        if [ -n "${{ matrix.runtime }}" ]; then
-            suffix="-${{ matrix.runtime }}"
+        if [ "${{ matrix.shared }}" = "true" ]; then
+            suffix="-shared"
+        else
+            suffix="-static"
         fi
 
-        echo "ARCHIVE_NAME=${{ env.PACKAGE_NAME }}-${{ github.ref_name }}-${{ matrix.plat }}-${{ matrix.xmake-arch }}${suffix}.tar.gz" >> $GITHUB_ENV
+        if [ -n "${{ matrix.runtime }}" ]; then
+            suffix="-${{ matrix.runtime }}${suffix}"
+        fi
 
+        echo "ARCHIVE_NAME=$PACKAGE_NAME-${{ github.ref_name }}-${{ matrix.plat }}-${{ matrix.xmake-arch }}${suffix}.tar.gz" >> "$GITHUB_ENV"
+
+    # 将 xmake package 生成的二进制包转换为适用于不同平台的独立发布包，去除 xmake 的目录管理层。
+    # 构建模式（debug/release）主要影响优化级别和调试信息，并不是二进制兼容性的唯一依据。Windows 下 MSVC Runtime（/MD、/MDd）会影响 CRT 链接方式，与用户工程的 ABI 兼容性直接相关，因此发布包根据 runtime 区分。
+    #
+    # 当前所有包均使用 release 模式构建：
+    #
+    # Windows:
+    #   - /MD  + shared=true  -> xmake-project-<version>-windows-x64-MD-shared.tar.gz
+    #   - /MD  + shared=false -> xmake-project-<version>-windows-x64-MD-static.tar.gz
+    #   - /MDd + shared=true  -> xmake-project-<version>-windows-x64-MDd-shared.tar.gz
+    #   - /MDd + shared=false -> xmake-project-<version>-windows-x64-MDd-static.tar.gz
+    #
+    # Linux:
+    #   Linux 不存在 MSVC Runtime 概念，因此仅根据平台和架构区分：
+    #   - linux-x86_64-shared.tar.gz
+    #   - linux-x86_64-static.tar.gz
+    #   - linux-arm64-shared.tar.gz
+    #   - linux-arm64-static.tar.gz
+    #
+    # 原始结构：
+    #
+    # xmake-project/
+    # └── <plat>/
+    #     └── <arch>/
+    #         └── release/
+    #             ├── include/
+    #             ├── lib/
+    #             └── bin/
+    #
+    # 转换后：
+    #
+    # xmake-project-v1.1.1-windows-x64-MD-shared.tar.gz
+    # ├── include/
+    # ├── lib/
+    # └── bin/
+    #
+    # xmake-project-v1.1.1-windows-x64-MDd-shared.tar.gz
+    # ├── include/
+    # ├── lib/
+    # └── bin/
+    #
+    # xmake-project-v1.1.1-linux-x86_64-shared.tar.gz
+    # ├── include/
+    # ├── lib/
+    # └── bin/
     - name: Archive Platform Packages
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
-        group=$(echo "${{ env.PACKAGE_NAME }}" | cut -c1)
+        group=$(printf '%s' "$PACKAGE_NAME" | cut -c1)
 
         tar czf \
-        ${{ env.ARCHIVE_NAME }} \
-        -C build/packages/${group}/${{ env.PACKAGE_NAME }}/${{ matrix.plat }}/${{ matrix.xmake-arch }}/release .
+        "$ARCHIVE_NAME" \
+        -C "build/packages/${group}/${PACKAGE_NAME}/${{ matrix.plat }}/${{ matrix.xmake-arch }}/release" .
 
     - name: Upload Platform Packages
       uses: actions/upload-artifact@v4
@@ -115,6 +203,12 @@ jobs:
     - name: Display Release Assets
       run: tree assets -a
 
+    - name: Read package metadata
+      id: package_metadata
+      shell: bash
+      run: |
+        echo "package_metadata=$(jq -c . assets/package-metadata.json)" >> "$GITHUB_OUTPUT"
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
@@ -127,6 +221,5 @@ jobs:
         token: ${{ secrets.XMAKE_REPO_TOKEN }}
         inputs: |
           {
-            "package_name": "${{ env.PACKAGE_NAME }}",
-            "version": "${{ github.ref_name }}"
+            "package_metadata": ${{ toJSON(steps.package_metadata.outputs.package_metadata) }}
           }

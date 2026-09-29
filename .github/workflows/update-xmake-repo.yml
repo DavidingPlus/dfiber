@@ -3,10 +3,8 @@ name: Update xmake-repo
 on:
   workflow_dispatch:
     inputs:
-      package_name:
-        required: true
-        type: string
-      version:
+      package_metadata:
+        description: JSON package metadata from xmake.lua.
         required: true
         type: string
 
@@ -21,9 +19,4 @@ jobs:
         token: ${{ secrets.XMAKE_REPO_TOKEN }}
         repository: davidingplus/xmake-repo
         event-type: update-package
-        client-payload: |
-          {
-            "package": "${{ inputs.package_name }}",
-            "repo": "${{ github.repository }}",
-            "version": "${{ inputs.version }}"
-          }
+        client-payload: ${{ inputs.package_metadata }}
