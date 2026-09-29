@@ -1,0 +1,31 @@
+/**
+ * @file globalmacros.h.in
+ * @author DavidingPlus (davidingplus@qq.com)
+ * @brief 同 config.h.in，生成配置文件 globalmacros.h 的模板文件。请勿手动修改或格式化!!!
+ *
+ * Copyright (c) 2026 电子科技大学 刘治学
+ *
+ */
+
+#ifndef _${MACRO_PREFIX}_GLOBALMACROS_H_
+#define _${MACRO_PREFIX}_GLOBALMACROS_H_
+
+
+#define ${MACRO_PREFIX}_CLASS_NONCOPYABLE(ClassName)             \
+                                                               \
+private:                                                       \
+                                                               \
+    ClassName(const ClassName &other) = delete;                \
+    ClassName(ClassName &&other) = delete;                     \
+    ClassName &operator=(const ClassName &other) = delete;     \
+    ClassName &operator=(ClassName &&other) = delete;
+
+
+// 命名空间包装宏。
+
+#define ${MACRO_PREFIX}_NAMESPACE_BEGIN(name) namespace name {
+
+#define ${MACRO_PREFIX}_NAMESPACE_END }
+
+
+#endif

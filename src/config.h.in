@@ -10,40 +10,40 @@
  *
  */
 
-#ifndef _COROUTINE_CONFIG_H_
-#define _COROUTINE_CONFIG_H_
+#ifndef _${MACRO_PREFIX}_CONFIG_H_
+#define _${MACRO_PREFIX}_CONFIG_H_
 
 
 /**
  * @brief 完整版本号（X.Y.Z）。
  */
-#define COROUTINE_CONFIG_VERSION "${VERSION}"
+#define ${MACRO_PREFIX}_CONFIG_VERSION "${VERSION}"
 
 /**
  * @brief 主版本号。
  */
-#define COROUTINE_CONFIG_VERSION_MAJOR ${VERSION_MAJOR}
+#define ${MACRO_PREFIX}_CONFIG_VERSION_MAJOR ${VERSION_MAJOR}
 
 /**
  * @brief 次版本号。
  */
-#define COROUTINE_CONFIG_VERSION_MINOR ${VERSION_MINOR}
+#define ${MACRO_PREFIX}_CONFIG_VERSION_MINOR ${VERSION_MINOR}
 
 /**
  * @brief 修订版本号。
  * @details patch 和 alter 均可。Linux 内核的习惯是 patch，这里顺从 XMake 内置变量命名规则，即 alter。
  */
-#define COROUTINE_CONFIG_VERSION_ALTER ${VERSION_ALTER}
+#define ${MACRO_PREFIX}_CONFIG_VERSION_ALTER ${VERSION_ALTER}
 
 /**
  * @brief 构建模式，DEBUG 或 RELEASE。
  */
-#define COROUTINE_CONFIG_MODE ${MODE}
+#define ${MACRO_PREFIX}_CONFIG_MODE ${MODE}
 
 /**
  * @brief 构建模式是否为 DEBUG。
  */
-#define COROUTINE_CONFIG_DEBUG ${DEBUG}
+#define ${MACRO_PREFIX}_CONFIG_DEBUG ${DEBUG}
 
 
 #endif
