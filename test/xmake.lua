@@ -2,7 +2,15 @@ if not get_config("with_gtest") then
     return
 end
 
+includes("config.lua")
+
+
 add_requires("gtest")
+
+local gtest_groups = {
+    "coroutine",
+    "testrun"
+}
 
 -- 请用 xmake test 执行测试。
 target("tests")
@@ -13,18 +21,21 @@ target("tests")
     add_deps("coroutine")
     add_packages("gtest")
 
+    before_build(function ()
+        os.tryrm("$(builddir)/$(plat)/$(arch)/$(mode)/test/gtest")
+        os.mkdir("$(builddir)/$(plat)/$(arch)/$(mode)/test/gtest")
+    end)
+
     on_install(function () end)
     apply_current_platform_target_config()
 
     add_files("main.cpp")
+    apply_gtest_summary_config("tests", gtest_groups)
 
-    add_tests("testrun", {
-        realtime_output = true,
-        files = {"testrun/*.cpp"}
-    })
-
-    add_tests("coroutine", {
-        realtime_output = true,
-        files = {"coroutine/*.cpp"}
-    })
+    for _, group in ipairs(gtest_groups) do
+        add_tests(group, {
+            realtime_output = true,
+            files = {group .. "/*.cpp"}
+        })
+    end
 target_end()
