@@ -1,4 +1,5 @@
-name: Unit Test On Linux
+# Unit Test On Multiple Platform
+name: Unit Test
 
 on:
   workflow_dispatch:

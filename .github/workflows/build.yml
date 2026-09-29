@@ -1,5 +1,6 @@
 # Template: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: Build On Linux
+# Build On Multiple Platform
+name: Build
 
 on:
   workflow_dispatch:
