@@ -1,12 +1,17 @@
 #ifndef _DFIBER_HOOK_H_
 #define _DFIBER_HOOK_H_
 
+#include "globalmacros.h"
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 // 用于判断钩子功能是否启用。
@@ -34,6 +39,9 @@ private:
 
     bool m_oldFlag;
 };
+
+
+DFIBER_NAMESPACE_END
 
 
 // extern "C" 确保正确调用 C 库中的系统调用，C++ 编译器不会对这些函数名进行修饰。

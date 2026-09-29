@@ -1,8 +1,13 @@
 #ifndef _DFIBER_SEMAPHORE_H_
 #define _DFIBER_SEMAPHORE_H_
 
+#include "globalmacros.h"
+
 #include <mutex>
 #include <condition_variable>
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 // 使用锁和条件变量来实现信号量。用于线程方法间的同步。
@@ -31,6 +36,9 @@ private:
 
     int m_count;
 };
+
+
+DFIBER_NAMESPACE_END
 
 
 #endif

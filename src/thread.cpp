@@ -4,6 +4,9 @@
 #include <unistd.h>
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 // 线程信息。
 // static 表示变量的生命周期持续到程序结束时才销毁。
 // thread_local 表示变量是线程局部的，即每个访问该变量的线程都会拥有一个独立副本。例如每个线程都会独立拥有一个 Thread 指针和当前线程名称，多个线程的副本互不干扰。
@@ -140,3 +143,6 @@ void *Thread::run(void *arg)
 
     return 0;
 }
+
+
+DFIBER_NAMESPACE_END

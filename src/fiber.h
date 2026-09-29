@@ -1,6 +1,8 @@
 #ifndef _DFIBER_FIBER_H_
 #define _DFIBER_FIBER_H_
 
+#include "globalmacros.h"
+
 #include <iostream>
 #include <memory>
 #include <atomic>
@@ -9,6 +11,9 @@
 
 #include <ucontext.h>
 #include <unistd.h>
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 // std::enable_shared_from_this<T> 允许一个对象在成员函数内部安全获得指向自己的 std::shared_ptr。
@@ -104,6 +109,9 @@ private:
     // 用于标记该协程是否受调度器管理。
     bool m_runInScheduler;
 };
+
+
+DFIBER_NAMESPACE_END
 
 
 #endif

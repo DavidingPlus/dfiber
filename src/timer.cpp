@@ -6,6 +6,9 @@
 #include <cassert>
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 bool Timer::cancel()
 {
     // 写锁互斥锁保护 TimerManager 对象。
@@ -239,3 +242,6 @@ void TimerManager::addTimer(std::shared_ptr<Timer> timer)
     // 唤醒调度线程。具体实现由子类重写，用于唤醒阻塞在 epoll_wait 等待中的线程。同样不能锁上加锁，所以放在锁生命周期外面。
     if (atFrontNeedTickle) onTimerInsertedAtFront();
 }
+
+
+DFIBER_NAMESPACE_END

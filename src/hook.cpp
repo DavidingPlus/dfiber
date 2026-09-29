@@ -37,6 +37,9 @@
     XX(setsockopt)
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 // 使用线程局部变量，每个线程都会判断一下是否启用了钩子。
 // 表示当前线程是否启用了钩子功能。初始值为 false，即钩子功能默认关闭。
 static thread_local bool tHookEnable = false;
@@ -95,7 +98,7 @@ void hookInit()
 // 最终 HOOK_FUN(XX) 会展开成所有 hook 函数的 dlsym 初始化代码，避免为每个函数重复手写初始化逻辑。
 #define XX(name)                                    \
     name##_f = (name##_fun)dlsym(RTLD_NEXT, #name); \
-    if (DFIBER_CONFIG_DEBUG)                     \
+    if (DFIBER_CONFIG_DEBUG)                        \
         std::cout << #name << ": " << (void *)name##_f << std::endl;
 
     HOOK_FUN(XX)
@@ -325,6 +328,9 @@ retry:
 }
 
 
+DFIBER_NAMESPACE_END
+
+
 extern "C"
 {
 
@@ -355,12 +361,12 @@ extern "C"
     unsigned int sleep(unsigned int seconds)
     {
         // 如果钩子未启用，则调用原始的系统调用。
-        if (!tHookEnable) return sleep_f(seconds);
+        if (!dfiber::tHookEnable) return sleep_f(seconds);
 
         // 获取当前正在执行的协程（Fiber），并将其保存到 fiber 变量中。
-        std::shared_ptr<Fiber> fiber = Fiber::GetThis();
+        std::shared_ptr<dfiber::Fiber> fiber = dfiber::Fiber::GetThis();
         // 获取当前线程的调度器对象（IOManager）指针，用于添加定时器任务。
-        IOManager *iom = IOManager::GetThis();
+        dfiber::IOManager *iom = dfiber::IOManager::GetThis();
 
         iom->addTimer(seconds * 1000, [fiber, iom]()
                       { iom->scheduleLock(fiber); });
@@ -373,10 +379,10 @@ extern "C"
 
     int usleep(useconds_t usec)
     {
-        if (!tHookEnable) return usleep_f(usec);
+        if (!dfiber::tHookEnable) return usleep_f(usec);
 
-        std::shared_ptr<Fiber> fiber = Fiber::GetThis();
-        IOManager *iom = IOManager::GetThis();
+        std::shared_ptr<dfiber::Fiber> fiber = dfiber::Fiber::GetThis();
+        dfiber::IOManager *iom = dfiber::IOManager::GetThis();
 
         // useconds_t 一个无符号整数类型，通常用于表示微秒数。在这个函数中，usec 表示延时的微秒数，将其转换为毫秒数 (usec/1000) 后用于定时器。
         iom->addTimer(usec / 1000, [fiber, iom]()
@@ -389,13 +395,13 @@ extern "C"
 
     int nanosleep(const struct timespec *req, struct timespec *rem)
     {
-        if (!tHookEnable) return nanosleep_f(req, rem);
+        if (!dfiber::tHookEnable) return nanosleep_f(req, rem);
 
         // 将 tv_sec 转换为毫秒，并将 tv_nsec 转换为毫秒，然后两者相加得到总的超时毫秒数。所以从这里看出实现的也是一个毫秒级的操作。
         uint64_t timeoutMs = req->tv_sec * 1000 + req->tv_nsec / 1000 / 1000;
 
-        std::shared_ptr<Fiber> fiber = Fiber::GetThis();
-        IOManager *iom = IOManager::GetThis();
+        std::shared_ptr<dfiber::Fiber> fiber = dfiber::Fiber::GetThis();
+        dfiber::IOManager *iom = dfiber::IOManager::GetThis();
 
         iom->addTimer(timeoutMs, [fiber, iom]()
                       { iom->scheduleLock(fiber); });
@@ -407,7 +413,7 @@ extern "C"
 
     int socket(int domain, int type, int protocol)
     {
-        if (!tHookEnable) return socket_f(domain, type, protocol);
+        if (!dfiber::tHookEnable) return socket_f(domain, type, protocol);
 
         // 如果钩子启用了，则通过调用原始的 socket 函数创建套接字，并将返回的文件描述符存储在 fd 变量中。
         int fd = socket_f(domain, type, protocol);
@@ -419,129 +425,140 @@ extern "C"
         }
 
         // 如果 socket 创建成功，使用 get() 函数将其加入 FdManager 的文件描述符管理类来进行管理。具体判断是否在其管理的文件描述符中，如果不在扩展存储文件描述数组大小，并且利用 FdCtx 进行初始化判断是是不是套接字，是不是系统非阻塞模式。
-        FdMgr::GetInstance()->get(fd, true);
+        dfiber::FdMgr::GetInstance()->get(fd, true);
 
 
         return fd;
     }
+}
 
-    // 在连接超时情况下处理非阻塞套接字连接的实现。它首先尝试使用钩子功能来捕获并管理连接请求的行为，然后使用 IOManager 和 Timer 来管理超时机制，逻辑实现和 doIo 类似。
-    // 注意：如果没有启用 hook 或者不是一个套接字、用户启用了非阻塞。都会调用 connect 系统调用，因为 connectWithTimeout 本身就在 connect 系统调用基础上实现的。
-    int connectWithTimeout(int fd, const struct sockaddr *addr, socklen_t addrlen, uint64_t timeoutMs)
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
+static uint64_t sConnectTimeout = -1;
+
+
+// 在连接超时情况下处理非阻塞套接字连接的实现。它首先尝试使用钩子功能来捕获并管理连接请求的行为，然后使用 IOManager 和 Timer 来管理超时机制，逻辑实现和 doIo 类似。
+// 注意：如果没有启用 hook 或者不是一个套接字、用户启用了非阻塞。都会调用 connect 系统调用，因为 connectWithTimeout 本身就在 connect 系统调用基础上实现的。
+static int connectWithTimeout(int fd, const struct sockaddr *addr, socklen_t addrlen, uint64_t timeoutMs)
+{
+    if (!tHookEnable) return connect_f(fd, addr, addrlen);
+
+    // 获取文件描述符 fd 的上下文信息 FdCtx。
+    std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(fd);
+    // 如果上下文不存在，则直接回落到原始 connect 保持系统 errno 语义。
+    if (!ctx) return connect_f(fd, addr, addrlen);
+    // 检查文件描述符上下文是否已关闭。
+    if (ctx->isClosed())
     {
-        if (!tHookEnable) return connect_f(fd, addr, addrlen);
+        // EBADF 表示一个无效的文件描述符。
+        errno = EBADF;
+        return -1;
+    }
+    // 如果文件描述符不是一个 socket 或者用户设置了非阻塞模式，则直接调用原始的 I/O 操作函数。
+    if (!ctx->isSocket() || ctx->getUserNonblock()) return connect_f(fd, addr, addrlen);
 
-        // 获取文件描述符 fd 的上下文信息 FdCtx。
-        std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(fd);
-        // 如果上下文不存在，则直接回落到原始 connect 保持系统 errno 语义。
-        if (!ctx) return connect_f(fd, addr, addrlen);
-        // 检查文件描述符上下文是否已关闭。
-        if (ctx->isClosed())
-        {
-            // EBADF 表示一个无效的文件描述符。
-            errno = EBADF;
-            return -1;
-        }
-        // 如果文件描述符不是一个 socket 或者用户设置了非阻塞模式，则直接调用原始的 I/O 操作函数。
-        if (!ctx->isSocket() || ctx->getUserNonblock()) return connect_f(fd, addr, addrlen);
+    // 第一次尝试调用非阻塞 connect。connect 有三种情况：
+    // 1. 返回 0：连接立即成功，直接返回。
+    // 2. 返回 -1 且 errno != EINPROGRESS：连接立即失败，直接返回错误。
+    // 3. 返回 -1 且 errno == EINPROGRESS：连接正在后台建立，需要通过 IOManager 等待连接完成。
+    int n = connect_f(fd, addr, addrlen);
+    // 立即成功，直接返回。
+    if (0 == n) return 0;
+    // 这里是用了下面分支的取反条件判断的，只有 EINPROGRESS 表示非阻塞连接正在进行。其他情况（例如连接被拒绝、网络不可达等）都已经得到最终结果，直接返回。
+    if (!(-1 == n && EINPROGRESS == errno)) return n;
 
-        // 第一次尝试调用非阻塞 connect。connect 有三种情况：
-        // 1. 返回 0：连接立即成功，直接返回。
-        // 2. 返回 -1 且 errno != EINPROGRESS：连接立即失败，直接返回错误。
-        // 3. 返回 -1 且 errno == EINPROGRESS：连接正在后台建立，需要通过 IOManager 等待连接完成。
-        int n = connect_f(fd, addr, addrlen);
-        // 立即成功，直接返回。
-        if (0 == n) return 0;
-        // 这里是用了下面分支的取反条件判断的，只有 EINPROGRESS 表示非阻塞连接正在进行。其他情况（例如连接被拒绝、网络不可达等）都已经得到最终结果，直接返回。
-        if (!(-1 == n && EINPROGRESS == errno)) return n;
+    // 非阻塞 connect 正在进行。交给 IOManager 等待 WRITE 事件。下面逻辑和 doIo() 类似。
+    IOManager *iom = IOManager::GetThis();           // 获取当前线程的 IOManager 实例。
+    std::shared_ptr<Timer> timer;                    // 声明一个定时器对象。
+    std::shared_ptr<TimerInfo> tinfo(new TimerInfo); // 创建追踪定时器是否取消的对象。
+    std::weak_ptr<TimerInfo> winfo(tinfo);           // 判断追踪定时器对象是否存在。
 
-        // 非阻塞 connect 正在进行。交给 IOManager 等待 WRITE 事件。下面逻辑和 doIo() 类似。
-        IOManager *iom = IOManager::GetThis();           // 获取当前线程的 IOManager 实例。
-        std::shared_ptr<Timer> timer;                    // 声明一个定时器对象。
-        std::shared_ptr<TimerInfo> tinfo(new TimerInfo); // 创建追踪定时器是否取消的对象。
-        std::weak_ptr<TimerInfo> winfo(tinfo);           // 判断追踪定时器对象是否存在。
+    // 超时时间先触发和写事件先触发会导致什么问题？
+    // 1. 超时：如果是超时事件比写资源先触发，那么调度任务肯定执行到定时回调就相当于把 addevent 的写事件处理了，然后给 tinfo->cancelled 标记超时，执行完后子协程让出执行权给调度协程，调度协程从 yield 的地方继续，删除定时器，并且 tinfo->cancelled 如果有值就是非 0 的情况，就将其错误给 errno，然后退出。
+    // 2. 写事件：如果是写事件触发，会直接执行到 yield 暂停的后面，并且 cancel 会取消上面设置的定时器，所以不可能发生再次调用定时器的回调这个过程，接下来就正常往下走后正确返回就行了。
 
-        // 超时时间先触发和写事件先触发会导致什么问题？
-        // 1. 超时：如果是超时事件比写资源先触发，那么调度任务肯定执行到定时回调就相当于把 addevent 的写事件处理了，然后给 tinfo->cancelled 标记超时，执行完后子协程让出执行权给调度协程，调度协程从 yield 的地方继续，删除定时器，并且 tinfo->cancelled 如果有值就是非 0 的情况，就将其错误给 errno，然后退出。
-        // 2. 写事件：如果是写事件触发，会直接执行到 yield 暂停的后面，并且 cancel 会取消上面设置的定时器，所以不可能发生再次调用定时器的回调这个过程，接下来就正常往下走后正确返回就行了。
-
-        // 检查是否设置了超时时间。如果 timeoutMs 不等于 -1，则创建一个定时器。
-        if (static_cast<uint64_t>(-1) != timeoutMs)
-        {
-            // 添加一个定时器，当超时时间到达时，取消事件监听并设置 cancelled 状态。
-            timer = iom->addConditionTimer(
-                timeoutMs, [winfo, fd, iom]()
-                {
+    // 检查是否设置了超时时间。如果 timeoutMs 不等于 -1，则创建一个定时器。
+    if (static_cast<uint64_t>(-1) != timeoutMs)
+    {
+        // 添加一个定时器，当超时时间到达时，取消事件监听并设置 cancelled 状态。
+        timer = iom->addConditionTimer(
+            timeoutMs, [winfo, fd, iom]()
+            {
                     auto t = winfo.lock();
                     if (!t || t->cancelled) return;
 
                     t->cancelled = ETIMEDOUT;
                     // 将指定的 fd 的事件触发将事件处理。
                     iom->cancelEvent(fd, IOManager::Event::WRITE); },
-                winfo);
-        }
+            winfo);
+    }
 
-        // 为文件描述符 fd 添加一个写事件监听器。这样的目的是为了上面的回调函数处理指定文件描述符。
-        int res = iom->addEvent(fd, IOManager::Event::WRITE);
-        // 添加事件成功。
-        if (0 == res)
-        {
-            Fiber::GetThis()->yield();
+    // 为文件描述符 fd 添加一个写事件监听器。这样的目的是为了上面的回调函数处理指定文件描述符。
+    int res = iom->addEvent(fd, IOManager::Event::WRITE);
+    // 添加事件成功。
+    if (0 == res)
+    {
+        Fiber::GetThis()->yield();
 
-            // 如果有定时器，取消定时器。
-            if (timer) timer->cancel();
+        // 如果有定时器，取消定时器。
+        if (timer) timer->cancel();
 
-            // 发生超时错误或者用户取消。
-            if (tinfo->cancelled)
-            {
-                // 赋值给 errno 通过其查看具体错误原因。
-                errno = tinfo->cancelled;
-                return -1;
-            }
-        }
-        // 添加事件失败。
-        else
+        // 发生超时错误或者用户取消。
+        if (tinfo->cancelled)
         {
-            if (timer) timer->cancel();
-
-            std::cerr << "connect addEvent(" << fd << ", WRITE) error";
-        }
-
-        // 检查连接是否建立成功。
-        int error = 0;
-        socklen_t len = sizeof(int);
-        // 通过 getsockopt() 检查套接字实际错误状态来判断是否成功或失败。
-        if (-1 == getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len))
-        {
-            return -1;
-        }
-        // 如果没有错误，返回 0 表示连接成功。
-        if (!error)
-        {
-            return 0;
-        }
-        // 如果有错误，设置 errno 并返回错误。
-        else
-        {
-            errno = error;
+            // 赋值给 errno 通过其查看具体错误原因。
+            errno = tinfo->cancelled;
             return -1;
         }
     }
+    // 添加事件失败。
+    else
+    {
+        if (timer) timer->cancel();
+
+        std::cerr << "connect addEvent(" << fd << ", WRITE) error";
+    }
+
+    // 检查连接是否建立成功。
+    int error = 0;
+    socklen_t len = sizeof(int);
+    // 通过 getsockopt() 检查套接字实际错误状态来判断是否成功或失败。
+    if (-1 == getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len))
+    {
+        return -1;
+    }
+    // 如果没有错误，返回 0 表示连接成功。
+    if (!error)
+    {
+        return 0;
+    }
+    // 如果有错误，设置 errno 并返回错误。
+    else
+    {
+        errno = error;
+        return -1;
+    }
+}
 
 
-    static uint64_t sConnectTimeout = -1;
+DFIBER_NAMESPACE_END
 
+
+extern "C"
+{
 
     int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     {
-        return connectWithTimeout(sockfd, addr, addrlen, sConnectTimeout);
+        return dfiber::connectWithTimeout(sockfd, addr, addrlen, dfiber::sConnectTimeout);
     }
 
     int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
     {
-        int fd = doIo(sockfd, accept_f, "accept", static_cast<uint32_t>(IOManager::Event::READ), SO_RCVTIMEO, addr, addrlen);
+        int fd = dfiber::doIo(sockfd, accept_f, "accept", static_cast<uint32_t>(dfiber::IOManager::Event::READ), SO_RCVTIMEO, addr, addrlen);
         // 同理添加到文件描述符管理器 FdManager 中。
-        if (fd >= 0) FdMgr::GetInstance()->get(fd, true);
+        if (fd >= 0) dfiber::FdMgr::GetInstance()->get(fd, true);
 
 
         return fd;
@@ -549,67 +566,67 @@ extern "C"
 
     ssize_t read(int fd, void *buf, size_t count)
     {
-        return doIo(fd, read_f, "read", static_cast<uint32_t>(IOManager::Event::READ), SO_RCVTIMEO, buf, count);
+        return dfiber::doIo(fd, read_f, "read", static_cast<uint32_t>(dfiber::IOManager::Event::READ), SO_RCVTIMEO, buf, count);
     }
 
     ssize_t readv(int fd, const struct iovec *iov, int iovcnt)
     {
-        return doIo(fd, readv_f, "readv", static_cast<uint32_t>(IOManager::Event::READ), SO_RCVTIMEO, iov, iovcnt);
+        return dfiber::doIo(fd, readv_f, "readv", static_cast<uint32_t>(dfiber::IOManager::Event::READ), SO_RCVTIMEO, iov, iovcnt);
     }
 
     ssize_t recv(int sockfd, void *buf, size_t len, int flags)
     {
-        return doIo(sockfd, recv_f, "recv", static_cast<uint32_t>(IOManager::Event::READ), SO_RCVTIMEO, buf, len, flags);
+        return dfiber::doIo(sockfd, recv_f, "recv", static_cast<uint32_t>(dfiber::IOManager::Event::READ), SO_RCVTIMEO, buf, len, flags);
     }
 
     ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen)
     {
-        return doIo(sockfd, recvfrom_f, "recvfrom", static_cast<uint32_t>(IOManager::Event::READ), SO_RCVTIMEO, buf, len, flags, src_addr, addrlen);
+        return dfiber::doIo(sockfd, recvfrom_f, "recvfrom", static_cast<uint32_t>(dfiber::IOManager::Event::READ), SO_RCVTIMEO, buf, len, flags, src_addr, addrlen);
     }
 
     ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
     {
-        return doIo(sockfd, recvmsg_f, "recvmsg", static_cast<uint32_t>(IOManager::Event::READ), SO_RCVTIMEO, msg, flags);
+        return dfiber::doIo(sockfd, recvmsg_f, "recvmsg", static_cast<uint32_t>(dfiber::IOManager::Event::READ), SO_RCVTIMEO, msg, flags);
     }
 
     ssize_t write(int fd, const void *buf, size_t count)
     {
-        return doIo(fd, write_f, "write", static_cast<uint32_t>(IOManager::Event::WRITE), SO_SNDTIMEO, buf, count);
+        return dfiber::doIo(fd, write_f, "write", static_cast<uint32_t>(dfiber::IOManager::Event::WRITE), SO_SNDTIMEO, buf, count);
     }
 
     ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
     {
-        return doIo(fd, writev_f, "writev", static_cast<uint32_t>(IOManager::Event::WRITE), SO_SNDTIMEO, iov, iovcnt);
+        return dfiber::doIo(fd, writev_f, "writev", static_cast<uint32_t>(dfiber::IOManager::Event::WRITE), SO_SNDTIMEO, iov, iovcnt);
     }
 
     ssize_t send(int sockfd, const void *buf, size_t len, int flags)
     {
-        return doIo(sockfd, send_f, "send", static_cast<uint32_t>(IOManager::Event::WRITE), SO_SNDTIMEO, buf, len, flags);
+        return dfiber::doIo(sockfd, send_f, "send", static_cast<uint32_t>(dfiber::IOManager::Event::WRITE), SO_SNDTIMEO, buf, len, flags);
     }
 
     ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen)
     {
-        return doIo(sockfd, sendto_f, "sendto", static_cast<uint32_t>(IOManager::Event::WRITE), SO_SNDTIMEO, buf, len, flags, dest_addr, addrlen);
+        return dfiber::doIo(sockfd, sendto_f, "sendto", static_cast<uint32_t>(dfiber::IOManager::Event::WRITE), SO_SNDTIMEO, buf, len, flags, dest_addr, addrlen);
     }
 
     ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags)
     {
-        return doIo(sockfd, sendmsg_f, "sendmsg", static_cast<uint32_t>(IOManager::Event::WRITE), SO_SNDTIMEO, msg, flags);
+        return dfiber::doIo(sockfd, sendmsg_f, "sendmsg", static_cast<uint32_t>(dfiber::IOManager::Event::WRITE), SO_SNDTIMEO, msg, flags);
     }
 
     int close(int fd)
     {
-        if (!tHookEnable) return close_f(fd);
+        if (!dfiber::tHookEnable) return close_f(fd);
         // 获得 FdManager 管理的 FdCtx 对象。
-        std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(fd);
+        std::shared_ptr<dfiber::FdCtx> ctx = dfiber::FdMgr::GetInstance()->get(fd);
 
         if (ctx)
         {
             // 删除 fd 以前，取消文件描述符 fd 上的所有事件，并触发所有回调函数。
-            auto iom = IOManager::GetThis();
+            auto iom = dfiber::IOManager::GetThis();
             if (iom) iom->cancelAll(fd);
 
-            FdMgr::GetInstance()->del(fd);
+            dfiber::FdMgr::GetInstance()->del(fd);
         }
 
 
@@ -644,9 +661,9 @@ extern "C"
                 int arg = va_arg(va, int);
                 va_end(va);
 
-                if (!tHookEnable) return fcntl_f(fd, cmd, arg);
+                if (!dfiber::tHookEnable) return fcntl_f(fd, cmd, arg);
 
-                std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(fd);
+                std::shared_ptr<dfiber::FdCtx> ctx = dfiber::FdMgr::GetInstance()->get(fd);
                 // 如果 ctx 无效，或者文件描述符关闭不是一个套接字就调用原始调用。
                 if (!ctx || ctx->isClosed() || !ctx->isSocket()) return fcntl_f(fd, cmd, arg);
 
@@ -674,9 +691,9 @@ extern "C"
                 // 调用原始的 fcntl 函数获取文件描述符的当前状态标志。
                 int arg = fcntl_f(fd, cmd);
 
-                if (!tHookEnable) return arg;
+                if (!dfiber::tHookEnable) return arg;
 
-                std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(fd);
+                std::shared_ptr<dfiber::FdCtx> ctx = dfiber::FdMgr::GetInstance()->get(fd);
                 // 如果上下文无效、文件描述符已关闭或不是套接字，则直接返回状态标志。
                 if (!ctx || ctx->isClosed() || !ctx->isSocket()) return arg;
 
@@ -769,12 +786,12 @@ extern "C"
         // 特殊处理：设置非阻塞模式的命令。
         if (FIONBIO == request)
         {
-            if (!tHookEnable) return ioctl_f(fd, request, arg);
+            if (!dfiber::tHookEnable) return ioctl_f(fd, request, arg);
 
             int flag = *(int *)arg;
             bool userNonblock = (0 != flag);
 
-            std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(fd);
+            std::shared_ptr<dfiber::FdCtx> ctx = dfiber::FdMgr::GetInstance()->get(fd);
             // 检查获取的上下文对象是否有效（即 ctx 是否为空）。如果上下文对象无效、文件描述符已关闭或不是一个套接字，则直接调用原始的 ioctl 函数，返回处理结果。
             if (!ctx || ctx->isClosed() || !ctx->isSocket()) return ioctl_f(fd, request, arg);
 
@@ -799,14 +816,14 @@ extern "C"
     // 用于设置套接字的选项。它允许你对套接字的行为进行配置，如设置超时时间、缓冲区大小、地址重用等。
     int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
     {
-        if (!tHookEnable) return setsockopt_f(sockfd, level, optname, optval, optlen);
+        if (!dfiber::tHookEnable) return setsockopt_f(sockfd, level, optname, optval, optlen);
 
         // 如果 level 是 SOL_SOCKET 且 optname 是 SO_RCVTIMEO（接收超时）或 SO_SNDTIMEO（发送超时），获取与该文件描述符关联的 FdCtx 上下文对象，并设置超时时间。
         if (SOL_SOCKET == level)
         {
             if (SO_RCVTIMEO == optname || SO_SNDTIMEO == optname)
             {
-                std::shared_ptr<FdCtx> ctx = FdMgr::GetInstance()->get(sockfd);
+                std::shared_ptr<dfiber::FdCtx> ctx = dfiber::FdMgr::GetInstance()->get(sockfd);
                 if (ctx)
                 {
                     // 那么代码会读取传入的 timeval 结构体，将其转化为毫秒数，并调用 ctx->setTimeout 方法，记录超时设置。

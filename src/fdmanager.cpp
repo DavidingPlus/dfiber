@@ -6,6 +6,9 @@
 #include <fcntl.h>
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 // 显式实例化 Singleton<FdManager> 模板。使编译器生成 FdManager 对应的单例模板代码，避免模板成员在多个编译单元中重复实例化。
 template class Singleton<FdManager>;
 
@@ -112,3 +115,6 @@ void FdManager::del(int fd)
     // reset() 用于释放当前 shared_ptr 对对象的所有权，并将智能指针置为 nullptr。调用 reset() 后，该 shared_ptr 不再持有对象，对象的引用计数会减少。如果当前 shared_ptr 是管理该对象的最后一个所有者，则对象会被自动销毁。
     m_datas[fd].reset();
 }
+
+
+DFIBER_NAMESPACE_END

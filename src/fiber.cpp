@@ -5,6 +5,9 @@
 #include <cassert>
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 // 正在运行的协程。
 static thread_local Fiber *t_fiber = nullptr;
 // 主协程。
@@ -218,3 +221,6 @@ void Fiber::MainFunc()
     // 由于 Scheduler 仍持有该 Fiber，因此对象不会立即析构，使用提前保存的裸指针完成最后一次 yield 即可。
     rawPtr->yield();
 }
+
+
+DFIBER_NAMESPACE_END

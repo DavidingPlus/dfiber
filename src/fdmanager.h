@@ -1,12 +1,17 @@
 #ifndef _DFIBER_FDMANAGER_H_
 #define _DFIBER_FDMANAGER_H_
 
+#include "globalmacros.h"
+
 #include <memory>
 #include <vector>
 #include <shared_mutex>
 #include <mutex>
 
 #include <sys/socket.h>
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 // FdCtx 类主要用于管理与文件描述符相关的状态和操作。在用户态记录了 fd 的读写超时和非阻塞信息，其中非阻塞包括用户显示设置的非阻塞和 hook 内部设置的非阻塞，区分这两种非阻塞可以有效应对用户对 fd 设置/获取 NONBLOCK 模式的情形。
@@ -159,6 +164,9 @@ private:
 // 重定义将 Singleton<FdManager> 变成 FdMgr 的缩写。
 // 显然 FdManager 类需要作为单例模式使用，确保类只有一个全局实例，并提供全局访问点。
 using FdMgr = Singleton<FdManager>;
+
+
+DFIBER_NAMESPACE_END
 
 
 #endif

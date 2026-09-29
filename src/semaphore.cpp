@@ -1,6 +1,9 @@
 #include "semaphore.h"
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 // P 操作。
 void Semaphore::wait()
 {
@@ -22,3 +25,6 @@ void Semaphore::signal()
     ++m_count;
     m_cv.notify_one(); // signal，要注意这里的 one 指的不是只有一个可能是多个线程。
 }
+
+
+DFIBER_NAMESPACE_END

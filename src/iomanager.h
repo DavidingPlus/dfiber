@@ -3,6 +3,10 @@
 
 #include "scheduler.h"
 #include "timer.h"
+#include "globalmacros.h"
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 // workflow：1 注册事件 -> 2 等待事件 -> 3 事件触发调度回调 -> 4 注销事件回调后从 epoll 注销 -> 5 执行回调进入调度器中执行调度。
@@ -156,6 +160,9 @@ private:
     // 文件描述符上下文数组，用于存储每个文件描述符的 FdContext。
     std::vector<FdContext *> m_fdContexts;
 };
+
+
+DFIBER_NAMESPACE_END
 
 
 #endif

@@ -6,6 +6,10 @@
 
 #include "fiber.h"
 #include "thread.h"
+#include "globalmacros.h"
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 // 现在这套调度器的设计，除了 stop 里面看到了 m_schedulerFiber->resume()，其他地方全是工作线程自己在跑 run() 函数，那这个调度协程 m_schedulerFiber 是怎么起作用的呢？
@@ -190,6 +194,9 @@ private:
     // 是否正在关闭。这个状态用于告诉所有线程，调度器准备退出了，以后不要一直等待新任务。
     bool m_stopping = false;
 };
+
+
+DFIBER_NAMESPACE_END
 
 
 #endif

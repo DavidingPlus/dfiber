@@ -11,6 +11,9 @@
 #include <fcntl.h>
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 IOManager::FdContext::EventContext &IOManager::FdContext::getEventContext(Event event)
 {
     // 判断事件要么是读事件，或者写事件。
@@ -590,3 +593,6 @@ void IOManager::contextResize(size_t size)
         }
     }
 }
+
+
+DFIBER_NAMESPACE_END

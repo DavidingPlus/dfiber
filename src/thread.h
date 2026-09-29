@@ -7,6 +7,10 @@
 #include <string>
 
 #include "semaphore.h"
+#include "globalmacros.h"
+
+
+DFIBER_NAMESPACE_BEGIN(dfiber)
 
 
 class Thread
@@ -51,6 +55,9 @@ private:
     // pthread_create() 仅表示线程已创建成功，并不能保证新线程已经开始执行。因此构造函数需要等待新线程完成初始化（如设置线程 ID、线程名称、thread_local 等信息）后再返回，避免调用方在构造完成后立即访问这些成员时发生竞争条件。新线程初始化完成后调用 signal()，构造函数通过 wait() 等待，从而保证 Thread 对象一旦构造完成，就已经处于可安全使用的状态。
     Semaphore m_semaphore;
 };
+
+
+DFIBER_NAMESPACE_END
 
 
 #endif

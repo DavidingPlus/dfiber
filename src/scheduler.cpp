@@ -7,6 +7,9 @@
 #include <chrono>
 
 
+DFIBER_NAMESPACE_BEGIN(dfiber)
+
+
 // 当前线程绑定的调度器对象。每个线程都有一个 thread_local 的 Scheduler 指针，用于记录当前线程正在运行的调度器，他们可能指向的是同一个调度器对象。
 static thread_local Scheduler *t_scheduler = nullptr;
 
@@ -284,3 +287,6 @@ bool Scheduler::stopping()
 
     return m_stopping && m_tasks.empty() && 0 == m_activeThreadCount;
 }
+
+
+DFIBER_NAMESPACE_END
